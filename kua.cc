@@ -49,6 +49,7 @@
 
 extern "C" {
 #include <stdio.h>
+#include <getopt.h>
 }
 
 static char __help[] = 

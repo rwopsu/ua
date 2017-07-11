@@ -36,6 +36,7 @@
 
 extern "C" {
 #include <stdlib.h>
+#include <string.h>	// gcc3+ needs it for ::bzero declaration
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>

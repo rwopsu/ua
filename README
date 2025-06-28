@@ -13,46 +13,90 @@ Also see the copyright notes in the source files.
 BUILD:
 ======
 
+This project supports both autotools and CMake build systems.
+
+AUTOTOOLS (Traditional):
+-----------------------
+
   $ sh autogen.sh CFLAGS= CXXFLAGS=-O3
   $ make
   $ sudo make install
 
-In essence, this is what it actually does:
+Or use the convenience build script:
+  $ ./build.sh autotools
 
-  $ g++ -o ua -O3 -I. ua.cc filei.cc -lcrypto 
-  $ g++ -o kua -O3 -I. kua.cc filei.cc -lcrypto
+CMAKE (Modern):
+---------------
 
-You may define __NOHASH and in this case, sorted tree based
-data structures will be preferred to hashed ones.
+  $ mkdir build && cd build
+  $ cmake ..
+  $ make
+  $ sudo make install
 
-  $ g++ -o ua -O3 -I. -D__NOHASH ua.cc filei.cc -lcrypto 
+Or use the convenience build script:
+  $ ./build.sh cmake
 
+BUILD SCRIPT:
+-------------
 
-The tool uses openssl's md5 (libcrypto). The tool also uses the POSIX 
-getopt lib.
+The project includes a convenient build script that supports both systems:
 
-The tool may use sorted (tree based) or hashed data structures. By default,
-hashed ones preferred. This can be overridden by specifying __NOHASH.
-Also it can be passed to make as
+  $ ./build.sh                    # Build with autotools (default)
+  $ ./build.sh cmake              # Build with CMake
+  $ ./build.sh -c autotools       # Clean and build with autotools
+  $ ./build.sh -j4 cmake          # Build with CMake using 4 jobs
+  $ ./build.sh --help             # Show all options
+
+PROJECT STRUCTURE:
+==================
+
+  src/           - Source files (*.cc, *.c, *.h)
+  build/         - Build artifacts (object files, binaries)
+  man/man1/      - Man pages (ua.1, kua.1)
+  CMakeLists.txt - CMake build configuration
+  Makefile.am    - Autotools build configuration
+
+HASH ALGORITHMS:
+================
+
+The tool supports multiple hash algorithms via the -a option:
+
+  $ ua -a md5     # MD5 (default)
+  $ ua -a sha1    # SHA1
+  $ ua -a sha256  # SHA256
+  $ ua -a b3      # BLAKE3 (fast, secure)
+  $ ua -a xxh64   # xxHash64 (very fast)
+
+NEW FEATURES:
+=============
+
+- Multiple hash algorithms (MD5, SHA1, SHA256, BLAKE3, xxHash64)
+- BLAKE3 SIMD optimizations (SSE2, SSE4.1, AVX2, AVX512)
+- Quote file names with -q option
+- Modern project structure with src/ and build/ directories
+- Dual build system support (autotools + CMake)
 
 FILES:
 ======
 
-  filei.h:  header with class and function definitions, can be used
-            in other tools
+  src/filei.h:   header with class and function definitions, can be used
+                 in other tools
 
-  filei.cc: implementation of stuff defined in filei.h, can be included
-            in both static and dynamic libraries
+  src/filei.cc:  implementation of stuff defined in filei.h, can be included
+                 in both static and dynamic libraries
 
-  ua.cc:    main of ua
+  src/ua.cc:     main of ua
   
-  kua.cc:   main of kua
+  src/kua.cc:    main of kua
+
+  man/man1/ua.1: man page for ua
+  man/man1/kua.1: man page for kua
 
 
 DOCUMENTATION:
 ==============
 
-  filei.h extensively documents the interface. Sparse comments in the cc
+  src/filei.h extensively documents the interface. Sparse comments in the cc
   files help in understanding the code.
 
 
@@ -68,3 +112,8 @@ USAGE:
 
    $ ua -vh
    $ kua -vh
+
+   Examples:
+   $ ua -a b3 *                    # Find duplicates using BLAKE3
+   $ kua -f file.txt -a xxh64 *    # Find files identical to file.txt using xxHash64
+   $ ua -q -a sha256 *             # Quote file names and use SHA256

@@ -46,6 +46,7 @@
 #endif
 
 #include <filei.h>
+#include <cstring>
 
 extern "C" {
 #include <stdio.h>
@@ -61,6 +62,8 @@ static char __help[] =
 "  -n:         do not ask the FS for file size\n"
 "  -v:         verbose output (prints stuff to stderr), verbose help\n" 
 "  -b <bsize>: set internal buffer size (default 1024)\n"
+"  -a <alg>:   hash algorithm: md5, sha1, sha256, b3, xxh64\n"
+"  -q:         quote file names with single quotes\n"
 "  -h:         this help (-vh more verbose help)\n"
 "  -           read file names from stdin\n";
 
@@ -103,8 +106,11 @@ int main(int argc, char* const * argv) {
    bool v = false; // verbose
    int BN = 1024; // buffer size
    bool count = true; // take size into account
+   bool quote = false; // quote file names with single quotes
 
    bool comm = true; // from command line
+
+   filei_hash_alg alg = filei_hash_alg::MD5;
 
    if (argc <= 1) {
       __phelp(false);
@@ -112,7 +118,7 @@ int main(int argc, char* const * argv) {
    }
 
    int opt;
-   while((opt = ::getopt(argc,argv,"f:hb:viws:m:n")) != -1) {
+   while((opt = ::getopt(argc,argv,"f:hb:viws:m:na:q")) != -1) {
       switch(opt) {
          case 'f':
             cfile = std::string(::optarg);
@@ -136,9 +142,23 @@ int main(int argc, char* const * argv) {
          case 'n':
             count = false;
             break;
+         case 'q':
+            quote = true;
+            break;
          case 'h':
             __phelp(v);
             return 0;
+         case 'a':
+            if (strcmp(::optarg, "md5") == 0) alg = filei_hash_alg::MD5;
+            else if (strcmp(::optarg, "sha1") == 0) alg = filei_hash_alg::SHA1;
+            else if (strcmp(::optarg, "sha256") == 0) alg = filei_hash_alg::SHA256;
+            else if (strcmp(::optarg, "b3") == 0) alg = filei_hash_alg::BLAKE3;
+            else if (strcmp(::optarg, "xxh64") == 0) alg = filei_hash_alg::XXHASH64;
+            else {
+               std::cerr << "Unknown algorithm: " << ::optarg << std::endl;
+               return 1;
+            }
+            break;
          case '?':
             std::cerr << "Type " << argv[0] << " -h for options." << std::endl;
             return 1;
@@ -190,7 +210,10 @@ int main(int argc, char* const * argv) {
       if (v) std::cerr << "Considering " << file << std::endl;
       try {
          if (count) if (n != filei::fsize(file)) continue;
-         if (filei::eq(cfile,file,ic,iw,0,BN)) std::cout << file << std::endl;
+         if (filei::eq(cfile,file,ic,iw,0,BN,alg)) {
+            if (quote) std::cout << "'" << file << "'" << std::endl;
+            else std::cout << file << std::endl;
+         }
       } catch(const char* e) {
          if (v) std::cerr << "Skipping " << file << ", " << e << std::endl;
          continue;

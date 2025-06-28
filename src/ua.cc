@@ -54,6 +54,7 @@
 #endif
 
 #include <filei.h>
+#include <cstring>
 
 extern "C" {
 #include <stdio.h>
@@ -72,6 +73,8 @@ static char __help[] =
 "  -s <sep>:   separator (default SPACE)\n"
 "  -p:         also print the hash value\n"
 "  -b <bsize>: set internal buffer size (default 1024)\n"
+"  -a <alg>:   hash algorithm: md5, sha1, sha256, b3, xxh64\n"
+"  -q:         quote file names with single quotes\n"
 "  -h:         this help (-vh more verbose help)\n"
 "  -           read file names from stdin\n";
 
@@ -174,6 +177,7 @@ int main(int argc, char* const * argv) {
    int BN = 1024; // buffer size
    bool ph = false; // print hash
    bool count = true; // take size into account
+   bool quote = false; // quote file names with single quotes
 
    int max = 0; // max chars to consider, ALL
 
@@ -181,13 +185,15 @@ int main(int argc, char* const * argv) {
 
    std::string sep(" "); // default sep
 
+   filei_hash_alg alg = filei_hash_alg::MD5;
+
    if (argc <= 1) {
       __phelp(false);
       return 1;
    }
 
    int opt;
-   while((opt = ::getopt(argc,argv,"hb:viws:m:2pn")) != -1) {
+   while((opt = ::getopt(argc,argv,"hb:viws:m:2pna:q")) != -1) {
       switch(opt) {
          case 'b':
             BN = ::atoi(::optarg);
@@ -220,9 +226,23 @@ int main(int argc, char* const * argv) {
          case 'n':
             count = false;
             break;
+         case 'q':
+            quote = true;
+            break;
          case 'h':
             __phelp(v);
             return 0;
+         case 'a':
+            if (strcmp(::optarg, "md5") == 0) alg = filei_hash_alg::MD5;
+            else if (strcmp(::optarg, "sha1") == 0) alg = filei_hash_alg::SHA1;
+            else if (strcmp(::optarg, "sha256") == 0) alg = filei_hash_alg::SHA256;
+            else if (strcmp(::optarg, "b3") == 0) alg = filei_hash_alg::BLAKE3;
+            else if (strcmp(::optarg, "xxh64") == 0) alg = filei_hash_alg::XXHASH64;
+            else {
+               std::cerr << "Unknown algorithm: " << ::optarg << std::endl;
+               return 1;
+            }
+            break;
          case '?':
             std::cerr << "Type " << argv[0] << " -h for options." << std::endl;
             return 1;
@@ -282,14 +302,18 @@ int main(int argc, char* const * argv) {
       if (fct->second.size() < 2) continue;
       // exactly two in set, and don't care about printing hash
       else if (fct->second.size() == 2 && !ph) {
-         if (filei::eq(fct->second[0],fct->second[1],ic,iw,0,BN)) {
-            std::cout << fct->second[0] << sep << fct->second[1] << std::endl;
+         if (filei::eq(fct->second[0],fct->second[1],ic,iw,0,BN,alg)) {
+            if (quote) {
+               std::cout << "'" << fct->second[0] << "'" << sep << "'" << fct->second[1] << "'" << std::endl;
+            } else {
+               std::cout << fct->second[0] << sep << fct->second[1] << std::endl;
+            }
          } 
          continue;
       }
 
       // these are still candidates
-      fset_t cands(ic,iw,max,BN);
+      fset_t cands(ic,iw,max,BN,alg);
 
       // iterate over same size files
       for(fvec_t::const_iterator fit = fct->second.begin(); 
@@ -318,7 +342,7 @@ int main(int argc, char* const * argv) {
          }
       } else resp = & cands.common();
 
-      fset_t::produce(*resp,std::cout,sep,ph);
+      fset_t::produce(*resp,std::cout,sep,ph,quote);
    }
 
    return 0;

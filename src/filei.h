@@ -67,6 +67,22 @@
 #include <iostream>
 #include <iomanip>
 
+// Add OpenSSL hash sizes
+#define FILEI_MD5_LEN 16
+#define FILEI_SHA1_LEN 20
+#define FILEI_SHA256_LEN 32
+#define FILEI_BLAKE3_LEN 32
+#define FILEI_XXHASH64_LEN 8
+
+// Add enum for hash algorithm
+enum class filei_hash_alg {
+    MD5,
+    SHA1,
+    SHA256,
+    BLAKE3,
+    XXHASH64
+};
+
 /** File info.
  *
  * Contains the path name and the corresponding md5 hash. 
@@ -95,8 +111,10 @@ class filei {
       static char _buffer[__UABUFFSIZE];
 
       std::string _path; // path name
-      unsigned char _md5[16]; // md5 hash
+      unsigned char _hash[FILEI_SHA256_LEN]; // max size for SHA256
       size_t _h; // hash of hash :)
+      filei_hash_alg _alg;
+      int _hash_len;
 
       // calculate hash
       void calc(bool ic, bool iw, size_t bs, size_t m) throw(const char*); 
@@ -118,22 +136,24 @@ class filei {
        * @param iw ignore white space (in essence, remove it)
        * @param m consider at most these many bytes for the hash (0: ALL)
        * @param bs buffer size of internal work buffer (default 1024)
+       * @param alg hash algorithm
        * @throws an error message if construction failed
        */
       filei(const std::string& path, bool ic, bool iw, 
-         size_t m = 0ul, size_t bs=1024ul)
+         size_t m = 0ul, size_t bs=1024ul,
+         filei_hash_alg alg = filei_hash_alg::MD5)
       throw(const char*);
 
       /** Get an md5 hash char.
        * @param i index
        * @return md5 hash char at index
        */
-      unsigned char operator[](int i) const { return _md5[i]; }
+      unsigned char operator[](int i) const { return _hash[i]; }
 
       /** Get the md5 hash characters.
        * @return the md5 hash characters. 
        */
-      const unsigned char* md5() const { return _md5; }
+      const unsigned char* hash() const { return _hash; }
 
       /** Get path name.
        * @return path name
@@ -147,6 +167,15 @@ class filei {
         */
       const size_t h() const { return _h; }
 
+      /** Get hash algorithm.
+       * @return hash algorithm
+       */
+      filei_hash_alg alg() const { return _alg; }
+
+      /** Get hash length.
+       * @return hash length
+       */
+      int hash_len() const { return _hash_len; }
 
       /** Get file size from the file system.
         * @param path absolute or relative path
@@ -162,47 +191,68 @@ class filei {
         * @param iw ignore white spaces
         * @param m onlu consider these many bytes (0 all)
         * @param bs set the internal buffer size
+        * @param alg hash algorithm
         * @return whether the files corresponding to p1 and p2 are identical
         * @throws an exception on any error
         */
       static bool eq(const std::string& p1, const std::string& p2,
-         bool ic, bool iw, size_t m = 0ul, size_t bs = 1024ul)
+         bool ic, bool iw, size_t m = 0ul, size_t bs = 1024ul,
+         filei_hash_alg alg = filei_hash_alg::MD5)
       throw(const char*);
 
       /** Functor for hashed containers.
        */
-      struct md5hash {
+      struct hashfn {
 
-         /** Calculate a hash of the md5 hash.
+         /** Calculate a hash of the filei object.
           * @param fi file info
-          * @return hash from md5
+          * @return hash value
           */
          size_t operator()(const filei& fi) const { return fi.h(); }
       };
 
       /** Functor for sorted containers.
        */
-      struct md5cmp {
+      struct hashcmp {
 
-         /** Compare the md5 hashes numerically.
+         /** Compare the hashes numerically.
            * @param fi1 file info 1
            * @param fi2 file info 2
-           * @return true if fi1._md5 < fi2._md5
+           * @return true if fi1._hash < fi2._hash
            */
-         bool operator()(const filei& fi1, const filei& fi2) const;
+         bool operator()(const filei& fi1, const filei& fi2) const {
+            int len = fi1.hash_len();
+            for (int i = 0; i < len; ++i) {
+                if (fi1._hash[i] < fi2._hash[i]) return true;
+                if (fi1._hash[i] > fi2._hash[i]) return false;
+            }
+            return false;
+         }
       };
 
       /** Functor for containers.
         */
-      struct md5eq {
+      struct hasheq {
     
-         /** Compare the md5 hashes numerically.
+         /** Compare the hashes numerically.
            * @param fi1 file info 1
            * @param fi2 file info 2
-           * @return true if fi1._md5 == fi2._md5
+           * @return true if fi1._hash == fi2._hash
            */
-         bool operator()(const filei& fi1, const filei& fi2) const;
+         bool operator()(const filei& fi1, const filei& fi2) const {
+            int len = fi1.hash_len();
+            for (int i = 0; i < len; ++i) {
+                if (fi1._hash[i] != fi2._hash[i]) return false;
+            }
+            return true;
+         }
       };
+
+      /** Equality operator for filei objects.
+       */
+      bool operator==(const filei& other) const {
+         return hasheq()(*this, other);
+      }
 
       // assign the three plugins below differently 
       // if you want re-entrant calculations,
@@ -238,26 +288,26 @@ typedef std::vector<std::string> fvec_t;
 
 /** Set of file infos.
   */
-typedef std::set<filei,filei::md5cmp> set_t;
+typedef std::set<filei,filei::hashcmp> set_t;
 
 /** Map from file name to file names. 
  * The key and the values together make up a set of 
  * identical files.
  */
-typedef std::map<filei,fvec_t,filei::md5cmp> map_t;
+typedef std::map<filei,fvec_t,filei::hasheq> map_t;
 
 
 #if defined(__UA_USEHASH)
 
 /** Hashed set of file infos.
   */
-typedef __gnu_cxx::hash_set<filei,filei::md5hash,filei::md5eq> hset_t;
+typedef __gnu_cxx::hash_set<filei,filei::hashfn,filei::hasheq> hset_t;
 
 /** Hashed map from file name to file names. 
  * The key and the values together make up a set of 
  * identical files.
  */
-typedef __gnu_cxx::hash_map<filei,fvec_t,filei::md5hash,filei::md5eq> hmap_t;
+typedef __gnu_cxx::hash_map<filei,fvec_t,filei::hashfn,filei::hasheq> hmap_t;
 #endif
 
 /** Sets of identical files.
@@ -279,6 +329,7 @@ class fset {
       bool _iw; // ignore whitespace
       size_t _max; // max chars to consider
       size_t _bs;  // buffer size
+      filei_hash_alg _alg;
 
       typedef typename M::const_iterator it_t; // subset iterator
 
@@ -300,9 +351,10 @@ class fset {
        * @param iw ignore white space
        * @param m consider at most these many bytes for hash (0: ALL)
        * @param bs internal buffer size (default 1024)
+       * @param alg hash algorithm
        */
-      fset(bool ic, bool iw, size_t m = 0, size_t bs = 1024):
-         _ic(ic), _iw(iw), _max(m), _bs(bs) {
+      fset(bool ic, bool iw, size_t m = 0, size_t bs = 1024, filei_hash_alg alg = filei_hash_alg::MD5):
+         _ic(ic), _iw(iw), _max(m), _bs(bs), _alg(alg) {
       }
 
  
@@ -311,7 +363,7 @@ class fset {
         * @throws a description if hash could not be constructed
         */
       void add(const std::string& path) throw(const char*) {
-         add(filei(path,_ic,_iw,_max,_bs));
+         add(filei(path,_ic,_iw,_max,_bs,_alg));
       }
 
       /** Print the sets of identical files.
@@ -321,21 +373,29 @@ class fset {
         * @param os output stream
         * @param s separator (default " ")
         * @param ph print hash (if true, the first column is the hash)
+        * @param quote quote file names with single quotes
         */
       static void produce(const M& cmn, std::ostream& os,
-         const std::string& s = " ", bool ph = false) {
+         const std::string& s = " ", bool ph = false, bool quote = false) {
 
          for(it_t it= cmn.begin(); it != cmn.end(); ++it) {
             if (ph) { // print hash
-               for(int i=0; i< 16; ++i) {
+               for(int i=0; i< it->first.hash_len(); ++i) {
                   int hi = it->first[i] >> 4 & 0x0f;
                   int lo = it->first[i] & 0x0f;
                   os << std::hex << hi << lo;
                }
                os << s;
             }
+            if (quote) os << "'";
             os << it->first.path();
-            for(int i=0; i<(int)it->second.size();++i) os << s << it->second[i];
+            if (quote) os << "'";
+            for(int i=0; i<(int)it->second.size();++i) {
+               os << s;
+               if (quote) os << "'";
+               os << it->second[i];
+               if (quote) os << "'";
+            }
             os << std::endl;
          }
       }

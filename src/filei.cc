@@ -41,6 +41,9 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <openssl/md5.h>
+#include <openssl/sha.h>
+#include "blake3.h"
+#include "xxhash.h"
 }
 
 #include <fstream>
@@ -50,9 +53,16 @@ size_t (*filei::_buffc)() = &filei::buffc;
 void (*filei::_relbuff)(void*) = 0;
 char filei::_buffer[__UABUFFSIZE];
      
-filei::filei(const std::string& path, bool ic, bool iw, size_t m, size_t bs)
-throw(const char*):_path(path),_h(0)  {
-   ::bzero(_md5,16); // zero out
+filei::filei(const std::string& path, bool ic, bool iw, size_t m, size_t bs, filei_hash_alg alg)
+throw(const char*):_path(path),_h(0),_alg(alg)  {
+   memset(_hash, 0, FILEI_SHA256_LEN);
+   switch (_alg) {
+      case filei_hash_alg::MD5: _hash_len = FILEI_MD5_LEN; break;
+      case filei_hash_alg::SHA1: _hash_len = FILEI_SHA1_LEN; break;
+      case filei_hash_alg::SHA256: _hash_len = FILEI_SHA256_LEN; break;
+      case filei_hash_alg::BLAKE3: _hash_len = FILEI_BLAKE3_LEN; break;
+      case filei_hash_alg::XXHASH64: _hash_len = FILEI_XXHASH64_LEN; break;
+   }
    calc(ic,iw,bs,m);
 }
 
@@ -100,16 +110,20 @@ static int __remove_white(char* buffer, int n) {
 }
 
 void filei::calc(bool ic, bool iw, size_t bn, size_t m) throw(const char*) {
-   
    const char* error = 0;
-
    char* buffer = 0;
    size_t tot = 0;
-   
+   bool ok = false;
+   // Hash context union
+   union {
+      MD5_CTX md5;
+      SHA_CTX sha1;
+      SHA256_CTX sha256;
+      blake3_hasher blake3;
+      // xxHash64 does not need a context for one-shot
+   } ctxt;
    std::ifstream is(_path.c_str());
-
    if (!is.good()) { error = "Could not open file"; goto FINALLY; }
-
    try {
       buffer= static_cast<char*>((*_gbuff)(bn));   // get buffer
       if (!buffer) throw 1;
@@ -117,54 +131,100 @@ void filei::calc(bool ic, bool iw, size_t bn, size_t m) throw(const char*) {
       error = "Could not allocate memory";
       goto FINALLY;
    }
-
    bn = _buffc ? std::min(bn,(*_buffc)()) : bn;  // get buffer size
-
-   MD5_CTX ctxt;
-   if (!MD5_Init(&ctxt)) { error = "Could not init MD5"; goto FINALLY; }
-
-
+   switch (_alg) {
+      case filei_hash_alg::MD5:
+         ok = MD5_Init(&ctxt.md5);
+         break;
+      case filei_hash_alg::SHA1:
+         ok = SHA1_Init(&ctxt.sha1);
+         break;
+      case filei_hash_alg::SHA256:
+         ok = SHA256_Init(&ctxt.sha256);
+         break;
+      case filei_hash_alg::BLAKE3:
+         blake3_hasher_init(&ctxt.blake3);
+         ok = true;
+         break;
+      case filei_hash_alg::XXHASH64:
+         ok = true; // handled as one-shot below
+         break;
+   }
+   if (!ok) { error = "Could not init hash"; goto FINALLY; }
+   if (_alg == filei_hash_alg::XXHASH64) {
+      // One-shot hash for xxHash64
+      std::vector<char> all_data;
+      while (is) {
+         is.read(buffer, bn);
+         all_data.insert(all_data.end(), buffer, buffer + is.gcount());
+      }
+      uint64_t xxh = XXH64(all_data.data(), all_data.size(), 0);
+      memcpy(_hash, &xxh, FILEI_XXHASH64_LEN);
+      _h = xxh;
+      goto FINALLY;
+   }
    for(bool done=false;!done;) {
       is.read(buffer,bn);
       size_t n = is.gcount();
       if (!n) break;
-
       if (ic) __lower_case(buffer,n);
       if (iw) {
          n -=  __remove_white(buffer,n);
          if (!n) continue;
       }
-
       if (m) {
          if (tot + n > m) {
             n = m - tot;
             done = true;
          } else tot += n;
       }
-
-      if (!MD5_Update(&ctxt,buffer,n)) { 
-          error = "MD5 calc error"; 
-          goto FINALLY; 
+      switch (_alg) {
+         case filei_hash_alg::MD5:
+            ok = MD5_Update(&ctxt.md5,buffer,n);
+            break;
+         case filei_hash_alg::SHA1:
+            ok = SHA1_Update(&ctxt.sha1,buffer,n);
+            break;
+         case filei_hash_alg::SHA256:
+            ok = SHA256_Update(&ctxt.sha256,buffer,n);
+            break;
+         case filei_hash_alg::BLAKE3:
+            blake3_hasher_update(&ctxt.blake3, buffer, n);
+            ok = true;
+            break;
+         case filei_hash_alg::XXHASH64:
+            // handled above
+            break;
       }
+      if (!ok) { error = "Hash calc error"; goto FINALLY; }
       if (is.eof()) break;
    }
-
-   if (!MD5_Final(_md5,&ctxt)) { 
-      error= "MD5 calc error (final)";
-      goto FINALLY; 
+   switch (_alg) {
+      case filei_hash_alg::MD5:
+         ok = MD5_Final(_hash,&ctxt.md5);
+         break;
+      case filei_hash_alg::SHA1:
+         ok = SHA1_Final(_hash,&ctxt.sha1);
+         break;
+      case filei_hash_alg::SHA256:
+         ok = SHA256_Final(_hash,&ctxt.sha256);
+         break;
+      case filei_hash_alg::BLAKE3:
+         blake3_hasher_finalize(&ctxt.blake3, _hash, FILEI_BLAKE3_LEN);
+         ok = true;
+         break;
+      case filei_hash_alg::XXHASH64:
+         // handled above
+         break;
    }
-
-   for(int i = 0, s = 0; i < 16; ++i, ++s) {
+   if (!ok) { error= "Hash calc error (final)"; goto FINALLY; }
+   for(int i = 0, s = 0; i < _hash_len; ++i, ++s) {
       if (s >= (int)sizeof(size_t)) s = 0;
-      _h ^= ((size_t)_md5[i]) << (s << 3);
+      _h ^= ((size_t)_hash[i]) << (s << 3);
    }
-
 FINALLY:
-
-   // clean-up
    is.close();
    if (_relbuff) (*_relbuff)(buffer);
-
    if (error) throw error;
 }
 
@@ -266,7 +326,7 @@ static bool __same(
 
 bool filei::eq(
    const std::string& p1, const std::string& p2,
-   bool ic, bool iw, size_t m, size_t bn) throw(const char*) {
+   bool ic, bool iw, size_t m, size_t bn, filei_hash_alg alg) throw(const char*) {
 
    const char* error = 0;
    char* buffer = 0;
@@ -312,27 +372,6 @@ FINALLY:
    if (error) throw error;
 
    return res;
-}
-
-bool filei::md5cmp::operator()(const filei& fi1, const filei& fi2) const {
-   if (fi1.h() < fi2.h()) return true;
-   else if (fi1.h() > fi2.h()) return false;
-   for(const unsigned char* p1=fi1._md5, *p2=fi2._md5;
-      p1< fi1._md5 + 16; ++p1,++p2) {
-      if (*p1 < *p2) return true;
-      else if (*p1 > *p2) return false;
-   }
-   return false;
-}
-
-
-bool filei::md5eq::operator()(const filei& fi1, const filei& fi2) const {
-   if (fi1.h() != fi2.h()) return false;
-   for(const unsigned char* p1=fi1._md5, *p2=fi2._md5;
-      p1< fi1._md5 + 16; ++p1,++p2) {
-      if (*p1 != *p2) return false;
-   }
-   return true;
 }
 
 

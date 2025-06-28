@@ -86,6 +86,6 @@ dist-clean: clean
 bin_PROGRAMS = ua kua
 ua_SOURCES = $(SRC_DIR)/filei.cc $(SRC_DIR)/filei.h $(SRC_DIR)/ua.cc 
 kua_SOURCES = $(SRC_DIR)/filei.cc $(SRC_DIR)/filei.h $(SRC_DIR)/kua.cc
-man_MANS = ua.1 kua.1
+man_MANS = man/man1/ua.1 man/man1/kua.1
 
 EXTRA_DIST = $(man_MANS)

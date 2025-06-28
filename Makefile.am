@@ -1,3 +1,5 @@
+AUTOMAKE_OPTIONS = subdir-objects
+
 # Compiler and flags
 CXX = g++
 CC = gcc

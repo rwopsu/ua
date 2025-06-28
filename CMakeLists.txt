@@ -59,8 +59,8 @@ target_include_directories(ua PRIVATE src)
 target_include_directories(kua PRIVATE src)
 
 # Link libraries
-target_link_libraries(ua PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(kua PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(ua PRIVATE OpenSSL::SSL OpenSSL::Crypto pthread)
+target_link_libraries(kua PRIVATE OpenSSL::SSL OpenSSL::Crypto pthread)
 
 # Install targets
 install(TARGETS ua kua

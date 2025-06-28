@@ -1,0 +1,88 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-193db6df80ad885a7a3a.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "ua",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "build-all::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-build-all-Debug-6280c96cfff3027b778d.json",
+					"name" : "build-all",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "clean-all::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-clean-all-Debug-3f4720047935b0cefa6b.json",
+					"name" : "clean-all",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "kua::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-kua-Debug-65cda255cab647bd11c0.json",
+					"name" : "kua",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "ua::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ua-Debug-307baad2b07e9ffe22e5.json",
+					"name" : "ua",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/kali/wk/gh/ua/ua/build",
+		"source" : "/home/kali/wk/gh/ua/ua"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}

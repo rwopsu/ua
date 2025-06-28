@@ -55,6 +55,11 @@
 
 #include <filei.h>
 #include <cstring>
+#include <thread>
+#include <future>
+#include <vector>
+#include <mutex>
+#include <map>
 
 extern "C" {
 #include <stdio.h>
@@ -75,6 +80,8 @@ static char __help[] =
 "  -b <bsize>: set internal buffer size (default 1024)\n"
 "  -a <alg>:   hash algorithm: md5, sha1, sha256, b3, xxh64\n"
 "  -q:         quote file names with single quotes\n"
+"  -t <num>:   number of threads (default: auto-detect)\n"
+"  -M:         disable adaptive milestone comparison\n"
 "  -h:         this help (-vh more verbose help)\n"
 "  -           read file names from stdin\n";
 
@@ -85,6 +92,13 @@ static char __vhelp[] =
 "      of the files with the same byte count and throw away the ones\n"
 "      with unique prefix hash\n"
 "   3. The still matching files will go through a full MD5 hash\n\n"
+"Adaptive milestone comparison (enabled by default, disable with -M):\n"
+"   For files with the same size, this feature performs progressive chunk\n"
+"   comparisons starting with small chunks and adaptively increasing to\n"
+"   larger chunks (up to 256MB for multi-gigabyte files). This eliminates\n"
+"   non-identical files early using fast xxHash64, reducing the number of\n"
+"   files that need full hashing. Chunk sizes are automatically adjusted\n"
+"   based on file size for optimal performance.\n\n"
 "-w implies -n, since the byte count is irrelevant information.\n"
 "The two-stage hashing algorithm first calculates identical sets\n"
 "considering only the first <max> bytes (thus the -2 option requires -m)\n"
@@ -165,6 +179,106 @@ static void __phelp(bool v) {
    std::cout.flush();
 }
 
+// Function to process a batch of files in parallel
+void process_file_batch(const std::vector<std::string>& files, fsetc_t& files_by_size, 
+                       bool count, bool verbose, std::mutex& mtx) {
+   for (const auto& file : files) {
+      try {
+         size_t s = count ? filei::fsize(file) : 0;
+         
+         std::lock_guard<std::mutex> lock(mtx);
+         files_by_size[s].push_back(file);
+         if (verbose) std::cerr << (count ? "Counting " : "Spooling ") 
+                               << file << std::endl;
+      } catch(const char* e) {
+         if (verbose) std::cerr << "Skipping " << file << ", " << e << std::endl;
+         continue;
+      }
+   }
+}
+
+// Adaptive milestone chunk comparison
+std::vector<std::string> adaptive_milestone_compare(const std::vector<std::string>& candidates,
+                                                   bool ic, bool iw, int thread_count, bool verbose) {
+   if (candidates.size() < 2) return candidates;
+   
+   std::vector<std::string> remaining = candidates;
+   
+   // Determine file size to choose appropriate chunk sizes
+   size_t file_size = 0;
+   try {
+      file_size = filei::fsize(candidates[0]);
+   } catch(const char*) {
+      file_size = 0;
+   }
+   
+   // Adaptive chunk sizes based on file size
+   std::vector<size_t> chunk_sizes;
+   if (file_size > 1024ULL * 1024ULL * 1024ULL) { // > 1GB
+      chunk_sizes = {1048576, 4194304, 16777216, 67108864, 268435456}; // 1MB, 4MB, 16MB, 64MB, 256MB
+   } else if (file_size > 100ULL * 1024ULL * 1024ULL) { // > 100MB
+      chunk_sizes = {262144, 1048576, 4194304, 16777216, 67108864}; // 256KB, 1MB, 4MB, 16MB, 64MB
+   } else if (file_size > 10ULL * 1024ULL * 1024ULL) { // > 10MB
+      chunk_sizes = {65536, 262144, 1048576, 4194304, 16777216}; // 64KB, 256KB, 1MB, 4MB, 16MB
+   } else {
+      chunk_sizes = {1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864}; // 1KB, 4KB, 16KB, 64KB, 256KB, 1MB, 4MB, 16MB, 64MB
+   }
+   
+   if (verbose) {
+      std::cerr << "File size: " << file_size << " bytes, using " << chunk_sizes.size() 
+                << " milestone chunks (max: " << chunk_sizes.back() / (1024*1024) << "MB)" << std::endl;
+   }
+   
+   for (size_t chunk_size : chunk_sizes) {
+      if (remaining.size() < 2) break;
+      
+      // Skip chunks larger than file size
+      if (file_size > 0 && chunk_size > file_size) break;
+      
+      if (verbose) {
+         std::cerr << "Comparing " << remaining.size() << " candidates with " 
+                   << chunk_size << " byte chunks" << std::endl;
+      }
+      
+      // Group files by their chunk hash
+      std::mutex chunk_mtx;
+      std::map<std::string, std::vector<std::string>> chunk_groups;
+      std::vector<std::future<void>> chunk_futures;
+      
+      for (const auto& file : remaining) {
+         chunk_futures.push_back(std::async(std::launch::async, [&chunk_groups, &chunk_mtx, &file, chunk_size, ic, iw]() {
+            try {
+               // Create a temporary filei object just for the chunk
+               filei fi(file, ic, iw, chunk_size, 1024, filei_hash_alg::XXHASH64); // Use fast xxHash for chunks
+               std::string chunk_hash(reinterpret_cast<const char*>(fi.hash()), fi.hash_len());
+               
+               std::lock_guard<std::mutex> lock(chunk_mtx);
+               chunk_groups[chunk_hash].push_back(file);
+            } catch(const char*) {
+               // Skip files that can't be read
+            }
+         }));
+      }
+      
+      for (auto& f : chunk_futures) f.wait();
+      
+      // Update remaining candidates to only those with matching chunk hashes
+      remaining.clear();
+      for (const auto& pair : chunk_groups) {
+         if (pair.second.size() >= 2) {
+            remaining.insert(remaining.end(), pair.second.begin(), pair.second.end());
+         }
+      }
+      
+      if (verbose && remaining.size() < candidates.size()) {
+         std::cerr << "Eliminated " << (candidates.size() - remaining.size()) 
+                   << " candidates with " << chunk_size << " byte comparison" << std::endl;
+      }
+   }
+   
+   return remaining;
+}
+
 int main(int argc, char* const * argv) {
 
    
@@ -178,8 +292,10 @@ int main(int argc, char* const * argv) {
    bool ph = false; // print hash
    bool count = true; // take size into account
    bool quote = false; // quote file names with single quotes
+   bool milestone = true; // use adaptive milestone comparison
 
    int max = 0; // max chars to consider, ALL
+   int thread_count = std::thread::hardware_concurrency(); // number of threads
 
    bool comm = true; // from command line
 
@@ -193,7 +309,7 @@ int main(int argc, char* const * argv) {
    }
 
    int opt;
-   while((opt = ::getopt(argc,argv,"hb:viws:m:2pna:q")) != -1) {
+   while((opt = ::getopt(argc,argv,"hb:viws:m:2pna:qt:M")) != -1) {
       switch(opt) {
          case 'b':
             BN = ::atoi(::optarg);
@@ -204,6 +320,13 @@ int main(int argc, char* const * argv) {
             break;
          case 'm':
             max = ::atoi(::optarg);
+            break;
+         case 't':
+            thread_count = ::atoi(::optarg);
+            if (thread_count <= 0) {
+               std::cerr << "Invalid thread count " << ::optarg << std::endl;
+               return 1;
+            }
             break;
          case 'i':
             ic = true;
@@ -228,6 +351,9 @@ int main(int argc, char* const * argv) {
             break;
          case 'q':
             quote = true;
+            break;
+         case 'M':
+            milestone = false;
             break;
          case 'h':
             __phelp(v);
@@ -258,6 +384,10 @@ int main(int argc, char* const * argv) {
 
    if (count && max && !stage) count = false;
 
+   if (v) {
+      std::cerr << "Using " << thread_count << " threads" << std::endl;
+   }
+
    if (argc > ::optind) { 
       if (argc >= ::optind +1 && *argv[::optind] == '-') {
          if (argc > ::optind + 1) {
@@ -271,6 +401,9 @@ int main(int argc, char* const * argv) {
 
    char fileb[1024];
 
+   // Collect all file names first
+   std::vector<std::string> all_files;
+   
    for(int i = ::optind;;) {
       char* file;
       if (comm) {
@@ -281,20 +414,49 @@ int main(int argc, char* const * argv) {
          if (std::cin.eof()) break;
          file = fileb;
       }
-
-
-      try {
-         size_t s = count ? filei::fsize(file) : 0;
-
-         files[s].push_back(file);
-         if (v) std::cerr << (count ? "Counting " : "Spooling ") 
-                          << file << std::endl;
-      } catch(const char* e) {
-         if (v) std::cerr << "Skipping " << file << ", " << e << std::endl;
-         continue;
-      }
+      all_files.push_back(file);
    }
 
+   // Process files in parallel batches
+   if (thread_count > 1 && all_files.size() > thread_count) {
+      std::mutex mtx;
+      std::vector<std::future<void>> futures;
+      
+      size_t batch_size = all_files.size() / thread_count;
+      size_t remainder = all_files.size() % thread_count;
+      
+      size_t start = 0;
+      for (int i = 0; i < thread_count; ++i) {
+         size_t end = start + batch_size + (i < remainder ? 1 : 0);
+         std::vector<std::string> batch(all_files.begin() + start, all_files.begin() + end);
+         
+         futures.push_back(std::async(std::launch::async, 
+                                    process_file_batch, 
+                                    std::move(batch), 
+                                    std::ref(files), 
+                                    count, v, std::ref(mtx)));
+         
+         start = end;
+      }
+      
+      // Wait for all threads to complete
+      for (auto& future : futures) {
+         future.wait();
+      }
+   } else {
+      // Fall back to sequential processing for small file lists
+      for (const auto& file : all_files) {
+         try {
+            size_t s = count ? filei::fsize(file) : 0;
+            files[s].push_back(file);
+            if (v) std::cerr << (count ? "Counting " : "Spooling ") 
+                             << file << std::endl;
+         } catch(const char* e) {
+            if (v) std::cerr << "Skipping " << file << ", " << e << std::endl;
+            continue;
+         }
+      }
+   }
 
    // iterate over size groups
    for(fsetc_t::const_iterator fct= files.begin(); fct != files.end(); ++fct) {
@@ -312,21 +474,54 @@ int main(int argc, char* const * argv) {
          continue;
       }
 
-      // these are still candidates
+      // Adaptive milestone comparison first
+      std::vector<std::string> remaining_candidates;
+      if (milestone) {
+         remaining_candidates = adaptive_milestone_compare(fct->second, ic, iw, thread_count, v);
+         
+         if (remaining_candidates.size() < 2) continue;
+         
+         if (v) {
+            std::cerr << "After milestone comparison: " << remaining_candidates.size() 
+                      << " candidates remain from " << fct->second.size() << " files" << std::endl;
+         }
+      } else {
+         remaining_candidates = fct->second;
+      }
+
+      // Parallel hashing for remaining candidates
+      std::mutex hash_mtx;
+      std::map<std::string, std::vector<std::string>> hash_to_files;
+      std::vector<std::future<void>> hash_futures;
+      for (const auto& file : remaining_candidates) {
+         hash_futures.push_back(std::async(std::launch::async, [&hash_to_files, &hash_mtx, &file, ic, iw, max, BN, alg, v, count]() {
+            try {
+               filei fi(file, ic, iw, max, BN, alg);
+               std::string hash_str(reinterpret_cast<const char*>(fi.hash()), fi.hash_len());
+               {
+                  std::lock_guard<std::mutex> lock(hash_mtx);
+                  hash_to_files[hash_str].push_back(file);
+               }
+               if (v && !count) {
+                  std::lock_guard<std::mutex> lock(hash_mtx);
+                  std::cerr << "Processed " << file << std::endl;
+               }
+            } catch(const char* e) {
+               std::lock_guard<std::mutex> lock(hash_mtx);
+               if (v && !count) std::cerr << "Skipping " << file << ", " << e << std::endl;
+            }
+         }));
+      }
+      for (auto& f : hash_futures) f.wait();
+
+      // Now, for each group of files with the same hash, add them to cands
       fset_t cands(ic,iw,max,BN,alg);
-
-      // iterate over same size files
-      for(fvec_t::const_iterator fit = fct->second.begin(); 
-         fit != fct->second.end(); ++fit) {
-
-         try {
-            // add candidate file
-            cands.add(*fit);
-            if (v && !count) std::cerr << "Processed " << *fit << std::endl;
-         } catch(const char* e) {
-            if (v && !count) std::cerr << "Skipping " << *fit 
-               << ", " << e <<  std::endl;
-            continue;
+      for (const auto& pair : hash_to_files) {
+         if (pair.second.size() < 2) continue; // skip unique hashes
+         for (const auto& file : pair.second) {
+            try {
+               cands.add(file);
+            } catch(const char*) { /* already reported */ }
          }
       }
 

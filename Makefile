@@ -1,21 +1,19 @@
-AUTOMAKE_OPTIONS = subdir-objects
-
 # Compiler and flags
 CXX = g++
 CC = gcc
-CXXFLAGS = -O3 -I src -Wall
+CXXFLAGS = -O3 -I src -Wall -std=c++98
 CFLAGS = -O3 -I src -Wall
 LDFLAGS = -lssl -lcrypto
+
+# Directories
+SRC_DIR = src
+BUILD_DIR = build
 
 # SIMD flags for BLAKE3
 SSE2_FLAGS = -msse2
 SSE41_FLAGS = -msse4.1
 AVX2_FLAGS = -mavx2
 AVX512_FLAGS = -mavx512f -mavx512vl
-
-# Directories
-SRC_DIR = src
-BUILD_DIR = build
 
 # Source files
 UA_SRC = $(SRC_DIR)/ua.cc $(SRC_DIR)/filei.cc \
@@ -80,12 +78,4 @@ dist-clean: clean
 	@if [ -L COPYING ]; then rm -f COPYING; fi
 	@if [ -L INSTALL ]; then rm -f INSTALL; fi
 
-.PHONY: all clean dist-clean
-
-# Legacy automake variables for compatibility
-bin_PROGRAMS = ua kua
-ua_SOURCES = src/filei.cc src/filei.h src/ua.cc 
-kua_SOURCES = src/filei.cc src/filei.h src/kua.cc
-man_MANS = man/man1/ua.1 man/man1/kua.1
-
-EXTRA_DIST = $(man_MANS)
+.PHONY: all clean dist-clean 

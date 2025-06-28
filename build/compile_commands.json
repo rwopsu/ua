@@ -1,0 +1,122 @@
+[
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/g++ -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -std=gnu++11 -o CMakeFiles/ua.dir/src/ua.cc.o -c /home/kali/wk/gh/ua/ua/src/ua.cc",
+  "file": "/home/kali/wk/gh/ua/ua/src/ua.cc",
+  "output": "CMakeFiles/ua.dir/src/ua.cc.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/g++ -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -std=gnu++11 -o CMakeFiles/ua.dir/src/filei.cc.o -c /home/kali/wk/gh/ua/ua/src/filei.cc",
+  "file": "/home/kali/wk/gh/ua/ua/src/filei.cc",
+  "output": "CMakeFiles/ua.dir/src/filei.cc.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -o CMakeFiles/ua.dir/src/blake3.c.o -c /home/kali/wk/gh/ua/ua/src/blake3.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3.c",
+  "output": "CMakeFiles/ua.dir/src/blake3.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -o CMakeFiles/ua.dir/src/blake3_dispatch.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_dispatch.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_dispatch.c",
+  "output": "CMakeFiles/ua.dir/src/blake3_dispatch.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -o CMakeFiles/ua.dir/src/blake3_portable.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_portable.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_portable.c",
+  "output": "CMakeFiles/ua.dir/src/blake3_portable.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -msse2 -o CMakeFiles/ua.dir/src/blake3_sse2.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_sse2.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_sse2.c",
+  "output": "CMakeFiles/ua.dir/src/blake3_sse2.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -msse4.1 -o CMakeFiles/ua.dir/src/blake3_sse41.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_sse41.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_sse41.c",
+  "output": "CMakeFiles/ua.dir/src/blake3_sse41.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -mavx2 -o CMakeFiles/ua.dir/src/blake3_avx2.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_avx2.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_avx2.c",
+  "output": "CMakeFiles/ua.dir/src/blake3_avx2.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -mavx512f -mavx512vl -o CMakeFiles/ua.dir/src/blake3_avx512.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_avx512.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_avx512.c",
+  "output": "CMakeFiles/ua.dir/src/blake3_avx512.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -o CMakeFiles/ua.dir/src/xxhash.c.o -c /home/kali/wk/gh/ua/ua/src/xxhash.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/xxhash.c",
+  "output": "CMakeFiles/ua.dir/src/xxhash.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/g++ -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -std=gnu++11 -o CMakeFiles/kua.dir/src/kua.cc.o -c /home/kali/wk/gh/ua/ua/src/kua.cc",
+  "file": "/home/kali/wk/gh/ua/ua/src/kua.cc",
+  "output": "CMakeFiles/kua.dir/src/kua.cc.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/g++ -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -std=gnu++11 -o CMakeFiles/kua.dir/src/filei.cc.o -c /home/kali/wk/gh/ua/ua/src/filei.cc",
+  "file": "/home/kali/wk/gh/ua/ua/src/filei.cc",
+  "output": "CMakeFiles/kua.dir/src/filei.cc.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -o CMakeFiles/kua.dir/src/blake3.c.o -c /home/kali/wk/gh/ua/ua/src/blake3.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3.c",
+  "output": "CMakeFiles/kua.dir/src/blake3.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -o CMakeFiles/kua.dir/src/blake3_dispatch.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_dispatch.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_dispatch.c",
+  "output": "CMakeFiles/kua.dir/src/blake3_dispatch.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -o CMakeFiles/kua.dir/src/blake3_portable.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_portable.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_portable.c",
+  "output": "CMakeFiles/kua.dir/src/blake3_portable.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -msse2 -o CMakeFiles/kua.dir/src/blake3_sse2.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_sse2.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_sse2.c",
+  "output": "CMakeFiles/kua.dir/src/blake3_sse2.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -msse4.1 -o CMakeFiles/kua.dir/src/blake3_sse41.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_sse41.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_sse41.c",
+  "output": "CMakeFiles/kua.dir/src/blake3_sse41.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -mavx2 -o CMakeFiles/kua.dir/src/blake3_avx2.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_avx2.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_avx2.c",
+  "output": "CMakeFiles/kua.dir/src/blake3_avx2.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -mavx512f -mavx512vl -o CMakeFiles/kua.dir/src/blake3_avx512.c.o -c /home/kali/wk/gh/ua/ua/src/blake3_avx512.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/blake3_avx512.c",
+  "output": "CMakeFiles/kua.dir/src/blake3_avx512.c.o"
+},
+{
+  "directory": "/home/kali/wk/gh/ua/ua/build",
+  "command": "/usr/bin/gcc -I/home/kali/wk/gh/ua/ua/src  -O3 -Wall -g -o CMakeFiles/kua.dir/src/xxhash.c.o -c /home/kali/wk/gh/ua/ua/src/xxhash.c",
+  "file": "/home/kali/wk/gh/ua/ua/src/xxhash.c",
+  "output": "CMakeFiles/kua.dir/src/xxhash.c.o"
+}
+]

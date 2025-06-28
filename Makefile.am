@@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 # Compiler and flags
 CXX = g++
 CC = gcc
-CXXFLAGS = -O3 -I src -Wall -std=c++98
+CXXFLAGS = -O3 -I src -Wall
 CFLAGS = -O3 -I src -Wall
 LDFLAGS = -lssl -lcrypto
 

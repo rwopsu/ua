@@ -117,7 +117,7 @@ class filei {
       int _hash_len;
 
       // calculate hash
-      void calc(bool ic, bool iw, size_t bs, size_t m) throw(const char*); 
+      void calc(bool ic, bool iw, size_t bs, size_t m);
 
       // return buffer 
       static void* gbuff(size_t) { return _buffer; }
@@ -141,8 +141,7 @@ class filei {
        */
       filei(const std::string& path, bool ic, bool iw, 
          size_t m = 0ul, size_t bs=1024ul,
-         filei_hash_alg alg = filei_hash_alg::MD5)
-      throw(const char*);
+         filei_hash_alg alg = filei_hash_alg::MD5);
 
       /** Get an md5 hash char.
        * @param i index
@@ -182,7 +181,7 @@ class filei {
         * @return file size in bytes
         * @throws an exception if status cannot be determined.
         */
-      static off_t fsize(const std::string& path) throw(const char*);
+      static off_t fsize(const std::string& path);
 
       /** Determine whether the two files are identical.
         * @param p1 path of one file
@@ -197,8 +196,7 @@ class filei {
         */
       static bool eq(const std::string& p1, const std::string& p2,
          bool ic, bool iw, size_t m = 0ul, size_t bs = 1024ul,
-         filei_hash_alg alg = filei_hash_alg::MD5)
-      throw(const char*);
+         filei_hash_alg alg = filei_hash_alg::MD5);
 
       /** Functor for hashed containers.
        */
@@ -362,7 +360,7 @@ class fset {
         * @param path file
         * @throws a description if hash could not be constructed
         */
-      void add(const std::string& path) throw(const char*) {
+      void add(const std::string& path) {
          add(filei(path,_ic,_iw,_max,_bs,_alg));
       }
 

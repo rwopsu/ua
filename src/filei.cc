@@ -54,7 +54,7 @@ void (*filei::_relbuff)(void*) = 0;
 char filei::_buffer[__UABUFFSIZE];
      
 filei::filei(const std::string& path, bool ic, bool iw, size_t m, size_t bs, filei_hash_alg alg)
-throw(const char*):_path(path),_h(0),_alg(alg)  {
+:_path(path),_h(0),_alg(alg)  {
    memset(_hash, 0, FILEI_SHA256_LEN);
    switch (_alg) {
       case filei_hash_alg::MD5: _hash_len = FILEI_MD5_LEN; break;
@@ -109,7 +109,7 @@ static int __remove_white(char* buffer, int n) {
    return r;
 }
 
-void filei::calc(bool ic, bool iw, size_t bn, size_t m) throw(const char*) {
+void filei::calc(bool ic, bool iw, size_t bn, size_t m) {
    const char* error = 0;
    char* buffer = 0;
    size_t tot = 0;
@@ -228,7 +228,7 @@ FINALLY:
    if (error) throw error;
 }
 
-off_t filei::fsize(const std::string& path) throw(const char*) {
+off_t filei::fsize(const std::string& path) {
    struct stat fsi;
 
    if (::stat(path.c_str(),&fsi)) throw "Could not stat file.";
@@ -239,7 +239,7 @@ off_t filei::fsize(const std::string& path) throw(const char*) {
 static bool __bytesame(
    std::istream& is1, std::istream& is2,
    char* buff1, char* buff2, 
-   size_t c1, size_t c2, size_t m) throw(const char*) {
+   size_t c1, size_t c2, size_t m) {
 
    size_t tot1 = 0, tot2 = 0;
 
@@ -326,7 +326,7 @@ static bool __same(
 
 bool filei::eq(
    const std::string& p1, const std::string& p2,
-   bool ic, bool iw, size_t m, size_t bn, filei_hash_alg alg) throw(const char*) {
+   bool ic, bool iw, size_t m, size_t bn, filei_hash_alg alg) {
 
    const char* error = 0;
    char* buffer = 0;

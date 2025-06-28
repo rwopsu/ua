@@ -106,8 +106,12 @@ case $BUILD_SYSTEM in
         echo "Running cmake..."
         cmake ..
         
-        echo "Building with make..."
-        make -j"$JOBS"
+        echo "Building with make or ninja..."
+        if command -v ninja >/dev/null 2>&1; then
+            ninja
+        else
+            make -j"$JOBS"
+        fi
         
         cd ..
         echo "Build complete! Binaries are in build/ directory"

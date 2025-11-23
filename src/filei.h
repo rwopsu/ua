@@ -55,8 +55,8 @@
 #include <string>
 
 #if defined(__UA_USEHASH)
-#include <ext/hash_set>
-#include <ext/hash_map>
+#include <unordered_set>
+#include <unordered_map>
 #endif
 
 #include <set>
@@ -299,13 +299,13 @@ typedef std::map<filei,fvec_t,filei::hasheq> map_t;
 
 /** Hashed set of file infos.
   */
-typedef __gnu_cxx::hash_set<filei,filei::hashfn,filei::hasheq> hset_t;
+typedef std::unordered_set<filei,filei::hashfn,filei::hasheq> hset_t;
 
 /** Hashed map from file name to file names. 
  * The key and the values together make up a set of 
  * identical files.
  */
-typedef __gnu_cxx::hash_map<filei,fvec_t,filei::hashfn,filei::hasheq> hmap_t;
+typedef std::unordered_map<filei,fvec_t,filei::hashfn,filei::hasheq> hmap_t;
 #endif
 
 /** Sets of identical files.
@@ -449,7 +449,7 @@ class fset {
 #if defined(__UA_USEHASH)
 typedef fset<hset_t,hmap_t> fset_t;
 typedef hmap_t res_t;
-typedef __gnu_cxx::hash_map<size_t,fvec_t> fsetc_t;
+typedef std::unordered_map<size_t,fvec_t> fsetc_t;
 #else
 typedef std::map<size_t,fvec_t> fsetc_t;
 typedef map_t res_t;

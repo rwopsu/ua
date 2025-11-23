@@ -185,7 +185,7 @@ int main(int argc, char* const * argv) {
 
    char fileb[FILENAME_MAX];
 
-   size_t n = 0;
+   off_t n = 0;
 
    if (count) {
       try {
@@ -209,7 +209,10 @@ int main(int argc, char* const * argv) {
 
       if (v) std::cerr << "Considering " << file << std::endl;
       try {
-         if (count) if (n != filei::fsize(file)) continue;
+         if (count) {
+            const off_t sz = filei::fsize(file);
+            if (n != sz) continue;
+         }
          if (filei::eq(cfile,file,ic,iw,0,BN,alg)) {
             if (quote) std::cout << "'" << file << "'" << std::endl;
             else std::cout << file << std::endl;

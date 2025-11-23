@@ -213,6 +213,10 @@ INLINE size_t compress_chunks_parallel(const uint8_t *input, size_t input_len,
 // number of parents hashed. (If there's an odd input chaining value left over,
 // return it as an additional output.) These parents are never the root and
 // never empty; those cases use a different codepath.
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
 INLINE size_t compress_parents_parallel(const uint8_t *child_chaining_values,
                                         size_t num_chaining_values,
                                         const uint32_t key[8], uint8_t flags,
@@ -225,8 +229,8 @@ INLINE size_t compress_parents_parallel(const uint8_t *child_chaining_values,
   const uint8_t *parents_array[MAX_SIMD_DEGREE_OR_2];
   size_t parents_array_len = 0;
   while (num_chaining_values - (2 * parents_array_len) >= 2) {
-    parents_array[parents_array_len] =
-        &child_chaining_values[2 * parents_array_len * BLAKE3_OUT_LEN];
+    const size_t offset = 2 * parents_array_len * (size_t)BLAKE3_OUT_LEN;
+    parents_array[parents_array_len] = child_chaining_values + offset;
     parents_array_len += 1;
   }
 
@@ -239,14 +243,18 @@ INLINE size_t compress_parents_parallel(const uint8_t *child_chaining_values,
 
   // If there's an odd child left over, it becomes an output.
   if (num_chaining_values > 2 * parents_array_len) {
-    memcpy(&out[parents_array_len * BLAKE3_OUT_LEN],
-           &child_chaining_values[2 * parents_array_len * BLAKE3_OUT_LEN],
+    const size_t out_offset = parents_array_len * (size_t)BLAKE3_OUT_LEN;
+    const size_t child_offset = 2 * parents_array_len * (size_t)BLAKE3_OUT_LEN;
+    memcpy(out + out_offset, child_chaining_values + child_offset,
            BLAKE3_OUT_LEN);
     return parents_array_len + 1;
   } else {
     return parents_array_len;
   }
 }
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 // The wide helper function returns (writes out) an array of chaining values
 // and returns the length of that array. The number of chaining values returned

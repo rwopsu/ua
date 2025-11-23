@@ -33,6 +33,7 @@ EOF
 BUILD_SYSTEM="autotools"
 CLEAN=false
 JOBS=$(nproc 2>/dev/null || echo 1)
+CONFIGURE_SRC="configure.ac"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -75,7 +76,7 @@ case $BUILD_SYSTEM in
             make dist-clean 2>/dev/null || true
         fi
         
-        if [ ! -f "configure" ]; then
+        if [ ! -f "configure" ] || [ "$CLEAN" = true ] || { [ -f "$CONFIGURE_SRC" ] && [ "$CONFIGURE_SRC" -nt "configure" ]; }; then
             echo "Running autogen.sh..."
             bash ./autogen.sh
         fi

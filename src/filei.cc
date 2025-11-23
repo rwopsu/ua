@@ -40,8 +40,7 @@ extern "C" {
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <openssl/md5.h>
-#include <openssl/sha.h>
+#include <openssl/evp.h>
 #include "blake3.h"
 #include "xxhash.h"
 }
@@ -114,14 +113,9 @@ void filei::calc(bool ic, bool iw, size_t bn, size_t m) {
    char* buffer = 0;
    size_t tot = 0;
    bool ok = false;
-   // Hash context union
-   union {
-      MD5_CTX md5;
-      SHA_CTX sha1;
-      SHA256_CTX sha256;
-      blake3_hasher blake3;
-      // xxHash64 does not need a context for one-shot
-   } ctxt;
+   EVP_MD_CTX* evp_ctx = 0;
+   const EVP_MD* evp_md = 0;
+   blake3_hasher blake3_ctx;
    std::ifstream is(_path.c_str());
    if (!is.good()) { error = "Could not open file"; goto FINALLY; }
    try {
@@ -134,21 +128,26 @@ void filei::calc(bool ic, bool iw, size_t bn, size_t m) {
    bn = _buffc ? std::min(bn,(*_buffc)()) : bn;  // get buffer size
    switch (_alg) {
       case filei_hash_alg::MD5:
-         ok = MD5_Init(&ctxt.md5);
+         evp_md = EVP_md5();
          break;
       case filei_hash_alg::SHA1:
-         ok = SHA1_Init(&ctxt.sha1);
+         evp_md = EVP_sha1();
          break;
       case filei_hash_alg::SHA256:
-         ok = SHA256_Init(&ctxt.sha256);
+         evp_md = EVP_sha256();
          break;
       case filei_hash_alg::BLAKE3:
-         blake3_hasher_init(&ctxt.blake3);
+         blake3_hasher_init(&blake3_ctx);
          ok = true;
          break;
       case filei_hash_alg::XXHASH64:
          ok = true; // handled as one-shot below
          break;
+   }
+   if (evp_md) {
+      evp_ctx = EVP_MD_CTX_new();
+      if (!evp_ctx) { error = "Could not allocate hash context"; goto FINALLY; }
+      ok = EVP_DigestInit_ex(evp_ctx, evp_md, nullptr) == 1;
    }
    if (!ok) { error = "Could not init hash"; goto FINALLY; }
    if (_alg == filei_hash_alg::XXHASH64) {
@@ -180,20 +179,17 @@ void filei::calc(bool ic, bool iw, size_t bn, size_t m) {
       }
       switch (_alg) {
          case filei_hash_alg::MD5:
-            ok = MD5_Update(&ctxt.md5,buffer,n);
-            break;
          case filei_hash_alg::SHA1:
-            ok = SHA1_Update(&ctxt.sha1,buffer,n);
-            break;
          case filei_hash_alg::SHA256:
-            ok = SHA256_Update(&ctxt.sha256,buffer,n);
+            ok = EVP_DigestUpdate(evp_ctx, buffer, n) == 1;
             break;
          case filei_hash_alg::BLAKE3:
-            blake3_hasher_update(&ctxt.blake3, buffer, n);
+            blake3_hasher_update(&blake3_ctx, buffer, n);
             ok = true;
             break;
          case filei_hash_alg::XXHASH64:
             // handled above
+            ok = true;
             break;
       }
       if (!ok) { error = "Hash calc error"; goto FINALLY; }
@@ -201,16 +197,12 @@ void filei::calc(bool ic, bool iw, size_t bn, size_t m) {
    }
    switch (_alg) {
       case filei_hash_alg::MD5:
-         ok = MD5_Final(_hash,&ctxt.md5);
-         break;
       case filei_hash_alg::SHA1:
-         ok = SHA1_Final(_hash,&ctxt.sha1);
-         break;
       case filei_hash_alg::SHA256:
-         ok = SHA256_Final(_hash,&ctxt.sha256);
+         ok = EVP_DigestFinal_ex(evp_ctx, _hash, nullptr) == 1;
          break;
       case filei_hash_alg::BLAKE3:
-         blake3_hasher_finalize(&ctxt.blake3, _hash, FILEI_BLAKE3_LEN);
+         blake3_hasher_finalize(&blake3_ctx, _hash, FILEI_BLAKE3_LEN);
          ok = true;
          break;
       case filei_hash_alg::XXHASH64:
@@ -224,6 +216,7 @@ void filei::calc(bool ic, bool iw, size_t bn, size_t m) {
    }
 FINALLY:
    is.close();
+   if (evp_ctx) EVP_MD_CTX_free(evp_ctx);
    if (_relbuff) (*_relbuff)(buffer);
    if (error) throw error;
 }
@@ -373,5 +366,3 @@ FINALLY:
 
    return res;
 }
-
-
